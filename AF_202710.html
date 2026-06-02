@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Afluencia - Supervisión de Test UDLA</title>
+    <!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+            --accent-green: #34d399;
+            --border-glow: rgba(56, 189, 248, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--accent-blue);
+            box-shadow: 0 0 15px var(--border-glow);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: linear-gradient(to right, #38bdf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .brand {
+            text-align: right;
+            font-weight: bold;
+            color: var(--accent-blue);
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        /* KPIS Grid */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background-color: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid var(--accent-blue);
+            transition: transform 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-card.purple { border-left-color: var(--accent-purple); }
+        .kpi-card.green { border-left-color: var(--accent-green); }
+
+        .kpi-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Main Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 992px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Selector / Interactive buttons */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-filter {
+            background-color: #334155;
+            color: var(--text-main);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .btn-filter.active, .btn-filter:hover {
+            background-color: var(--accent-blue);
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Table design */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #334155;
+            color: var(--text-main);
+            padding: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #334155;
+            color: var(--text-muted);
+        }
+
+        tr:hover td {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge-success { background-color: rgba(52, 211, 153, 0.2); color: var(--accent-green); }
+        .badge-info { background-color: rgba(56, 189, 248, 0.2); color: var(--accent-blue); }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 4px;
+            padding: 15px;
+            border-top: 1px solid #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Dashboard Técnico de Control de Afluencia</h1>
+            <p>Análisis interactivo por fecha de toma y asistencia total</p>
+        </div>
+        <div class="brand">
+            STA ADMISIONES<br>
+            <span style="font-size:10px; color:var(--text-muted);">EXÁMENES MASIVOS</span>
+        </div>
+    </header>
+
+    <!-- KPIs -->
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Inscritos Hábiles</div>
+            <div class="kpi-value" id="kpi-inscritos">244</div>
+            <div class="kpi-sub">Aspirantes registrados global</div>
+        </div>
+        <div class="kpi-card purple">
+            <div class="kpi-title">Total Evaluados Rendidos</div>
+            <div class="kpi-value" id="kpi-rendidos">220</div>
+            <div class="kpi-sub">Tests efectivamente procesados</div>
+        </div>
+        <div class="kpi-card green">
+            <div class="kpi-title">% Afluencia General Promedio</div>
+            <div class="kpi-value" id="kpi-eficiencia">90.16%</div>
+            <div class="kpi-sub">Ratio promedio de asistencia</div>
+        </div>
+    </div>
+
+    <!-- Main Grid Content -->
+    <div class="dashboard-grid">
+        <!-- Main Line Chart Column -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    📈 Curva de Afluencia e Inscritos por Fecha de Toma
+                </div>
+                <div class="btn-group">
+                    <button class="btn-filter active" onclick="updateChartType('all')">General</button>
+                    <button class="btn-filter" onclick="updateChartType('ccss')">CCSS</button>
+                    <button class="btn-filter" onclick="updateChartType('med')">MED</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="mainAfluenciaChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Segment Breakdown Doughnut -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 Participación por Proceso</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="processDoughnutChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="card" style="margin-bottom: 25px;">
+        <div class="card-header">
+            <div class="card-title">📋 Detalle de Registros por Fecha de Toma</div>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha de Toma 📅</th>
+                        <th>Inscritos CCSS 👥</th>
+                        <th>Rendidos CCSS 📝</th>
+                        <th>Inscritos MED 👥</th>
+                        <th>Rendidos MED 📝</th>
+                        <th>Total Inscritos 📌</th>
+                        <th>Total Rendidos ✔️</th>
+                        <th>% Afluencia General 📈</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Inserted via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 Betvin Computer's | Módulo de Analítica Automatizada para Admisiones Universitarias
+    </footer>
+
+    <script>
+        // Source data extracted accurately from file
+        const dataMetrics = [
+            { fecha: "2026-03-21", rendidos_ccss: 18, rendidos_med: 4, total_rendidos: 22, inscritos_ccss: 22, inscritos_med: 4, total_inscritos: 26, afluencia_ccss: 81.82, afluencia_med: 100.0, afluencia_general: 84.62 },
+            { fecha: "2026-04-11", rendidos_ccss: 28, rendidos_med: 26, total_rendidos: 54, inscritos_ccss: 32, inscritos_med: 28, total_inscritos: 60, afluencia_ccss: 87.5, afluencia_med: 92.86, afluencia_general: 90.0 },
+            { fecha: "2026-04-25", rendidos_ccss: 42, rendidos_med: 30, total_rendidos: 72, inscritos_ccss: 50, inscritos_med: 33, total_inscritos: 83, afluencia_ccss: 84.0, afluencia_med: 90.91, afluencia_general: 86.75 },
+            { fecha: "2026-05-09", rendidos_ccss: 25, rendidos_med: 16, total_rendidos: 41, inscritos_ccss: 21, inscritos_med: 21, total_inscritos: 42, afluencia_ccss: 119.05, afluencia_med: 76.19, afluencia_general: 97.62 },
+            { fecha: "2026-05-16", rendidos_ccss: 22, rendidos_med: 9, total_rendidos: 31, inscritos_ccss: 23, inscritos_med: 10, total_inscritos: 33, afluencia_ccss: 95.65, afluencia_med: 90.0, afluencia_general: 93.94 }
+        ];
+
+        // Populate Table
+        const tbody = document.getElementById('table-body');
+        let totalInscritosGlobal = 0;
+        let totalRendidosGlobal = 0;
+        let sumAfluencia = 0;
+
+        dataMetrics.forEach(row => {
+            totalInscritosGlobal += row.total_inscritos;
+            totalRendidosGlobal += row.total_rendidos;
+            sumAfluencia += row.afluencia_general;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-weight: 600; color: var(--accent-blue);">${row.fecha}</td>
+                <td>${row.inscritos_ccss}</td>
+                <td>${row.rendidos_ccss}</td>
+                <td>${row.inscritos_med}</td>
+                <td>${row.rendidos_med}</td>
+                <td style="font-weight: bold; color: #fff;">${row.total_inscritos}</td>
+                <td style="font-weight: bold; color: var(--accent-purple);">${row.total_rendidos}</td>
+                <td><span class="badge ${row.afluencia_general >= 90 ? 'badge-success' : 'badge-info'}">${row.afluencia_general}%</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Update KPIs dynamically
+        document.getElementById('kpi-inscritos').innerText = totalInscritosGlobal;
+        document.getElementById('kpi-rendidos').innerText = totalRendidosGlobal;
+        document.getElementById('kpi-eficiencia').innerText = (totalRendidosGlobal / totalInscritosGlobal * 100).toFixed(2) + "%";
+
+        // Global Chart variable
+        let mainChart;
+
+        // Initialize Main mixed Line/Bar Chart
+        function initMainChart() {
+            const ctx = document.getElementById('mainAfluenciaChart').getContext('2d');
+            
+            const labels = dataMetrics.map(d => d.fecha);
+            const totalInscritos = dataMetrics.map(d => d.total_inscritos);
+            const totalRendidos = dataMetrics.map(d => d.total_rendidos);
+            const afluenciaGeneral = dataMetrics.map(d => d.afluencia_general);
+
+            mainChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Inscritos',
+                            data: totalInscritos,
+                            backgroundColor: 'rgba(56, 189, 248, 0.4)',
+                            borderColor: '#38bdf8',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Total Rendidos',
+                            data: totalRendidos,
+                            backgroundColor: 'rgba(192, 132, 252, 0.6)',
+                            borderColor: '#c084fc',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '% Afluencia General',
+                            data: afluenciaGeneral,
+                            type: 'line',
+                            borderColor: '#34d399',
+                            background: 'transparent',
+                            pointBackgroundColor: '#34d399',
+                            tension: 0.2,
+                            borderWidth: 3,
+                            yAxisID: 'yPercent'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#f8fafc' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#334155' },
+                            title: { display: true, text: 'Cantidad de Personas', color: '#94a3b8' }
+                        },
+                        yPercent: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 50,
+                            max: 120,
+                            ticks: { color: '#34d399', callback: value => value + '%' },
+                            grid: { display: false },
+                            title: { display: true, text: 'Porcentaje (%)', color: '#34d399' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update chart dynamically according to selected process filter
+        function updateChartType(type) {
+            // Adjust active buttons layout
+            const buttons = document.querySelectorAll('.btn-filter');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (type === 'all') {
+                mainChart.data.datasets[0].label = 'Total Inscritos';
+                mainChart.data.datasets[0].data = dataMetrics.map(d => d.total_inscritos);
+                mainChart.data.datasets[1].label = 'Total Rendidos';
+                mainChart.data.datasets[1].data = dataMetrics.map(d => d.total_rendidos);
+                mainChart.data.datasets[2].label = '% Afluencia General';
+                mainChart.data.datasets[2].data = dataMetrics.map(d => d.afluencia_general);
+            } else if (type === 'ccss') {
+                mainChart.data.datasets[0].label = 'Inscritos CCSS';
+                mainChart.data.datasets[0].data = dataMetrics.map(d => d.inscritos_ccss);
+                mainChart.data.datasets[1].label = 'Rendidos CCSS';
+                mainChart.data.datasets[1].data = dataMetrics.map(d => d.rendidos_ccss);
+                mainChart.data.datasets[2].label = '% Afluencia CCSS';
+                mainChart.data.datasets[2].data = dataMetrics.map(d => d.afluencia_ccss);
+            } else if (type === 'med') {
+                mainChart.data.datasets[0].label = 'Inscritos MED';
+                mainChart.data.datasets[0].data = dataMetrics.map(d => d.inscritos_med);
+                mainChart.data.datasets[1].label = 'Rendidos MED';
+                mainChart.data.datasets[1].data = dataMetrics.map(d => d.rendidos_med);
+                mainChart.data.datasets[2].label = '% Afluencia MED';
+                mainChart.data.datasets[2].data = dataMetrics.map(d => d.afluencia_med);
+            }
+            mainChart.update();
+        }
+
+        // Initialize Doughnut Chart
+        function initDoughnutChart() {
+            const ctx = document.getElementById('processDoughnutChart').getContext('2d');
+            
+            let ccssTotal = dataMetrics.reduce((sum, d) => sum + d.rendidos_ccss, 0);
+            let medTotal = dataMetrics.reduce((sum, d) => sum + d.rendidos_med, 0);
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ciencias de la Salud (CCSS)', 'Medicina (MED)'],
+                    datasets: [{
+                        data: [ccssTotal, medTotal],
+                        backgroundColor: ['#38bdf8', '#c084fc'],
+                        borderWidth: 2,
+                        borderColor: '#1e293b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f8fafc', padding: 20 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Run on load
+        window.onload = function() {
+            initMainChart();
+            initDoughnutChart();
+        };
+    </script>
+</body>
+</html>
